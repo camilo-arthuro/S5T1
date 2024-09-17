@@ -10,4 +10,18 @@ import lombok.NoArgsConstructor;
 public class Card {
     private String suit;
     private String rank;
+
+    public int getValue(){
+        int value = 0;
+
+        if("JQK".contains(rank)) {
+            value = 10;
+        } else if (rank == "A"){
+            value = 11;
+        } else {
+            value = Integer.parseInt(rank);
+        }
+
+        return value;
+    }
 }

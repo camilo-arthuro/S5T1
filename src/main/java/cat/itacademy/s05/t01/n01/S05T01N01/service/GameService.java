@@ -1,19 +1,24 @@
 package cat.itacademy.s05.t01.n01.S05T01N01.service;
 
+import cat.itacademy.s05.t01.n01.S05T01N01.model.Card;
 import cat.itacademy.s05.t01.n01.S05T01N01.model.Deck;
 import cat.itacademy.s05.t01.n01.S05T01N01.model.Game;
+import cat.itacademy.s05.t01.n01.S05T01N01.model.Player;
 import cat.itacademy.s05.t01.n01.S05T01N01.repository.GameRepository;
+import cat.itacademy.s05.t01.n01.S05T01N01.repository.PlayerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class GameService {
 
     private final GameRepository gameRepository;
+    private final PlayerRepository playerRepository;
 
     public Mono<Game> createGame(String playerId) {
         Game game = new Game();
@@ -30,7 +35,29 @@ public class GameService {
         game.getDealerHand().add(deck.dealCard());
         game.getDealerHand().add(deck.dealCard());
 
+        game.setPlayerSum(gameScore(game.getPlayerHand()));
+        game.setDealerSum(gameScore(game.getDealerHand()));
+
+        savePlayer(playerId);
+
         return gameRepository.save(game);
+    }
+
+    public void savePlayer(String playerId){
+        Player player = new Player();
+        player.setName(playerId);
+        player.setScore(0);
+
+        playerRepository.save(player);
+    }
+
+    public int gameScore(List<Card> Hand){
+        int total = 0;
+
+        for (int i = 0; i < Hand.size(); i++) {
+            total += Hand.get(i).getValue();
+        }
+        return total;
     }
 
     public Mono<Game> getGame(String gameId) {
@@ -60,6 +87,10 @@ public class GameService {
                     }
                     return gameRepository.save(game);
                 });
+    }
+
+    public List<Player> getRanking() {
+        return playerRepository.findAllByOrderByScoreDesc();
     }
 
 }
