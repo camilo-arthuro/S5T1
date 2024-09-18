@@ -54,8 +54,8 @@ public class GameService {
     public int gameScore(List<Card> Hand){
         int total = 0;
 
-        for (int i = 0; i < Hand.size(); i++) {
-            total += Hand.get(i).getValue();
+        for (Card card : Hand) {
+            total += card.getValue();
         }
         return total;
     }
@@ -69,6 +69,7 @@ public class GameService {
     }
 
     public Mono<Game> play(String gameId, String playerId, String action) {
+        Player player = findPlayer(playerId);
         return gameRepository.findById(gameId)
                 .flatMap(game -> {
                     if (!game.getPlayerId().equals(playerId)) {
@@ -85,12 +86,46 @@ public class GameService {
                         default:
                             return Mono.error(new IllegalArgumentException("Invalid action"));
                     }
+                    while (game.getStatus().equals("PLAYER_STAND")){
+                        gameStatus(game, player, deck);
+                    }
                     return gameRepository.save(game);
                 });
     }
 
+    public void gameStatus(Game game, Player player, Deck deck){
+        if (game.getDealerSum()>game.getPlayerSum() && game.getDealerSum() <=21){
+            game.setStatus("PLAYER_LOSES");
+        } else if (game.getDealerSum()>21) {
+            game.setStatus("PLAYER_WINS");
+            player.setScore(player.getScore()+1);
+            playerRepository.save(player);
+        } else {
+            game.getDealerHand().add(deck.dealCard());
+        }
+    }
+
+    public Player findPlayer(String playerId){
+        return playerRepository.findAll()
+                .stream()
+                .filter(player -> player.getName().equals(playerId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Player not found"));
+    }
+
     public List<Player> getRanking() {
         return playerRepository.findAllByOrderByScoreDesc();
+    }
+
+    public Mono<Game> changeName(String playerId, String gameId, String newPlayerId){
+        Player player = findPlayer(playerId);
+        player.setName(newPlayerId);
+        playerRepository.save(player);
+        return gameRepository.findById(gameId)
+                .flatMap(game -> {
+                    game.setPlayerId(newPlayerId);
+                    return gameRepository.save(game);
+                });
     }
 
 }
