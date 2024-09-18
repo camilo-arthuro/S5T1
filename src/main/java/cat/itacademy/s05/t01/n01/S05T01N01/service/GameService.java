@@ -22,7 +22,13 @@ public class GameService {
 
     public Mono<Game> createGame(String playerId) {
         Game game = new Game();
-        game.setPlayerId(playerId);
+        Player player = findPlayer(playerId);
+        if (player != null){
+            game.setPlayerId(playerId);
+        } else {
+            game.setPlayerId(playerId);
+            savePlayer(playerId);
+        }
         game.setPlayerHand(new ArrayList<>());
         game.setDealerHand(new ArrayList<>());
         game.setStatus("IN_PROGRESS");
@@ -37,8 +43,6 @@ public class GameService {
 
         game.setPlayerSum(gameScore(game.getPlayerHand()));
         game.setDealerSum(gameScore(game.getDealerHand()));
-
-        savePlayer(playerId);
 
         return gameRepository.save(game);
     }
@@ -73,22 +77,25 @@ public class GameService {
         return gameRepository.findById(gameId)
                 .flatMap(game -> {
                     if (!game.getPlayerId().equals(playerId)) {
-                        return Mono.error(new IllegalStateException("Invalid player ID"));
-                    }
-                    Deck deck = new Deck();
-                    switch (action.toLowerCase()) {
-                        case "hit":
-                            game.getPlayerHand().add(deck.dealCard());
-                            game.setPlayerSum(gameScore(game.getPlayerHand()));
-                            break;
-                        case "stand":
-                            game.setStatus("PLAYER_STAND");
-                            break;
-                        default:
-                            return Mono.error(new IllegalArgumentException("Invalid action"));
-                    }
-                    while (game.getStatus().equals("PLAYER_STAND")){
-                        gameStatus(game, player, deck);
+                        return Mono.error(new IllegalStateException("INVALID_PLAYER_ID"));
+                    } else if (!game.getStatus().equals("IN_PROGRESS") && !game.getStatus().equals("PLAYER_STAND")){
+                        game.setStatus("GAME_OVER");
+                    } else {
+                        Deck deck = new Deck();
+                        switch (action.toLowerCase()) {
+                            case "hit":
+                                game.getPlayerHand().add(deck.dealCard());
+                                game.setPlayerSum(gameScore(game.getPlayerHand()));
+                                break;
+                            case "stand":
+                                game.setStatus("PLAYER_STAND");
+                                break;
+                            default:
+                                return Mono.error(new IllegalArgumentException("Invalid action"));
+                        }
+                        while (game.getStatus().equals("PLAYER_STAND")){
+                            gameStatus(game, player, deck);
+                        }
                     }
                     return gameRepository.save(game);
                 });
@@ -97,6 +104,8 @@ public class GameService {
     public void gameStatus(Game game, Player player, Deck deck){
         if (game.getDealerSum()>game.getPlayerSum() && game.getDealerSum() <=21){
             game.setStatus("PLAYER_LOSES");
+        } else if (game.getDealerSum() == 21 && game.getPlayerSum() == 21) {
+            game.setStatus("NO_WINNERS");
         } else if (game.getDealerSum()>21) {
             game.setStatus("PLAYER_WINS");
             player.setScore(player.getScore()+1);
@@ -112,7 +121,7 @@ public class GameService {
                 .stream()
                 .filter(player -> player.getName().equals(playerId))
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Player not found"));
+                .orElse(null);
     }
 
     public List<Player> getRanking() {
@@ -121,11 +130,17 @@ public class GameService {
 
     public Mono<Game> changeName(String playerId, String gameId, String newPlayerId){
         Player player = findPlayer(playerId);
-        player.setName(newPlayerId);
-        playerRepository.save(player);
+        if (player != null){
+            player.setName(newPlayerId);
+            playerRepository.save(player);
+        }
         return gameRepository.findById(gameId)
                 .flatMap(game -> {
-                    game.setPlayerId(newPlayerId);
+                    if (!game.getPlayerId().equals(playerId)) {
+                        return Mono.error(new IllegalStateException("PLAYER_NOT_FOUND"));
+                    } else {
+                        game.setPlayerId(newPlayerId);
+                    }
                     return gameRepository.save(game);
                 });
     }
