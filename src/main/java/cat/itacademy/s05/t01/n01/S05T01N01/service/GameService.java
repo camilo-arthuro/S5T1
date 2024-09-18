@@ -79,6 +79,7 @@ public class GameService {
                     switch (action.toLowerCase()) {
                         case "hit":
                             game.getPlayerHand().add(deck.dealCard());
+                            game.setPlayerSum(gameScore(game.getPlayerHand()));
                             break;
                         case "stand":
                             game.setStatus("PLAYER_STAND");
@@ -102,6 +103,7 @@ public class GameService {
             playerRepository.save(player);
         } else {
             game.getDealerHand().add(deck.dealCard());
+            game.setDealerSum(gameScore(game.getDealerHand()));
         }
     }
 
