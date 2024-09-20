@@ -86,6 +86,9 @@ public class GameService {
                             case "hit":
                                 game.getPlayerHand().add(deck.dealCard());
                                 game.setPlayerSum(gameScore(game.getPlayerHand()));
+                                if (game.getPlayerSum() > 21){
+                                    game.setStatus("GAME_OVER");
+                                }
                                 break;
                             case "stand":
                                 game.setStatus("PLAYER_STAND");
