@@ -35,16 +35,26 @@ public class GameService {
 
         Deck deck = new Deck();
 
-        game.getPlayerHand().add(deck.dealCard());
-        game.getPlayerHand().add(deck.dealCard());
-
-        game.getDealerHand().add(deck.dealCard());
-        game.getDealerHand().add(deck.dealCard());
-
-        game.setPlayerSum(gameScore(game.getPlayerHand()));
-        game.setDealerSum(gameScore(game.getDealerHand()));
+        addCardsPlayer(game, deck);
+        addCardsDealer(game, deck);
 
         return gameRepository.save(game);
+    }
+
+    public void addCardsPlayer(Game game, Deck deck){
+        for (int i = 0; i < 2; i++) {
+            game.getPlayerHand().add(deck.dealCard());
+            totalAcePlayer(game);
+        }
+        game.setPlayerSum(gameScore(game.getPlayerHand()));
+    }
+
+    public void addCardsDealer(Game game, Deck deck){
+        for (int i = 0; i < 2; i++) {
+            game.getDealerHand().add(deck.dealCard());
+            totalAceDealer(game);
+        }
+        game.setDealerSum(gameScore(game.getDealerHand()));
     }
 
     public void savePlayer(String playerId){
@@ -85,7 +95,9 @@ public class GameService {
                         switch (action.toLowerCase()) {
                             case "hit":
                                 game.getPlayerHand().add(deck.dealCard());
+                                totalAcePlayer(game);
                                 game.setPlayerSum(gameScore(game.getPlayerHand()));
+                                verifyPointsPlayer(game);
                                 if (game.getPlayerSum() > 21){
                                     game.setStatus("GAME_OVER");
                                 }
@@ -97,11 +109,42 @@ public class GameService {
                                 return Mono.error(new IllegalArgumentException("Invalid action"));
                         }
                         while (game.getStatus().equals("PLAYER_STAND")){
+                            verifyPointsDealer(game);
                             gameStatus(game, player, deck);
                         }
                     }
                     return gameRepository.save(game);
                 });
+    }
+
+    public void verifyPointsPlayer(Game game){
+        if (game.getPlayerSum() > 21 && game.getPlayerAce() > 0){
+            game.setPlayerSum(game.getPlayerSum()-(10*game.getPlayerAce()));
+        }
+    }
+
+    public void verifyPointsDealer(Game game){
+        if (game.getDealerSum() > 21 && game.getDealerAce() > 0){
+            game.setDealerSum(game.getDealerSum()-(10*game.getDealerAce()));
+        }
+    }
+
+    public void totalAcePlayer(Game game){
+        String aceCard = game.getPlayerHand().getLast().getRank();
+        int total = game.getPlayerAce();
+
+        if ("A".contains(aceCard)){
+            game.setPlayerAce(total+1);
+        }
+    }
+
+    public void totalAceDealer(Game game){
+        String aceCard = game.getDealerHand().getLast().getRank();
+        int total = game.getDealerAce();
+
+        if ("A".contains(aceCard)){
+            game.setDealerAce(total+1);
+        }
     }
 
     public void gameStatus(Game game, Player player, Deck deck){
@@ -115,6 +158,7 @@ public class GameService {
             playerRepository.save(player);
         } else {
             game.getDealerHand().add(deck.dealCard());
+            totalAceDealer(game);
             game.setDealerSum(gameScore(game.getDealerHand()));
         }
     }

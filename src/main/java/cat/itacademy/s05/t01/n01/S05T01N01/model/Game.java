@@ -17,5 +17,7 @@ public class Game {
     private List<Card> dealerHand;
     private int playerSum;
     private int dealerSum;
+    private int playerAce;
+    private int dealerAce;
     private String status;
 }

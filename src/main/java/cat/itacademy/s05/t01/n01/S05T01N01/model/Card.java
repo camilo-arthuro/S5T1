@@ -16,7 +16,7 @@ public class Card {
 
         if("JQK".contains(rank)) {
             value = 10;
-        } else if (rank == "A"){
+        } else if ("A".contains(rank)){
             value = 11;
         } else {
             value = Integer.parseInt(rank);
